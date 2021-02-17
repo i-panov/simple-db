@@ -1,23 +1,61 @@
 <template>
   <div>
+    <div>
+      <modal name="add-column-modal" width="400" height="230">
+        <div class="container" style="margin-top: 1em; margin-right: 1em">
+          <div class="row mb-3">
+            <label for="new_column_id" class="col-sm-3 col-form-label">ID</label>
+            <div class="col-sm-9">
+              <input class="form-control" id="new_column_id" v-model="newColumn.id">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="new_column_name" class="col-sm-3 col-form-label">Название</label>
+            <div class="col-sm-9">
+              <input class="form-control" id="new_column_name" v-model="newColumn.name">
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="new_column_type" class="col-sm-3 col-form-label">Тип</label>
+            <div class="col-sm-9">
+              <select class="form-control" id="new_column_type" v-model="newColumn.type">
+                <option v-for="option in types" :key="option">{{ option }}</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary float-right" @click="addColumn()">Сохранить</button>
+        </div>
+      </modal>
+      <button class="btn btn-default" @click="save()">Сохранить</button>
+      <button class="btn btn-default" @click="$modal.show('add-column-modal')">Добавить столбец</button>
+      <button class="btn btn-default" @click="addRow()">Добавить строку</button>
+    </div>
     <table>
       <tr>
-        <th v-for="column in columns" :key="column">{{ column }}</th>
+        <th v-for="(column, id) in columns" :key="id">
+          {{ column.name }} 
+          <i class="fas fa-trash pointer" aria-hidden="true" title="Удалить" @click="removeColumn(id)"></i>
+        </th>
+        <th>Действия</th>
       </tr>
-      <tr v-for="row in rows" :key="row">
-        <td v-for="cell in row" :key="cell">
-          <input v-if="cell.schema.type === 'text'" type="text" :value="cell.value">
-          <input v-else-if="cell.schema.type === 'number'" type="number" :value="cell.value">
+      <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
+        <td v-for="cell in row" :key="cell.id">
+          <input v-if="cell.schema.type === 'text'" type="text" v-model="cell.value">
+          <input v-else-if="cell.schema.type === 'number'" type="number" v-model="cell.value">
           <input v-else-if="cell.schema.type === 'boolean'" type="checkbox" :checked="cell.value">
-          <select v-else-if="cell.schema.type === 'enum'">
+          <select v-else-if="cell.schema.type === 'enum'" v-model="cell.value">
             <option></option>
-            <option v-for="option in cell.schema.options" :key="option" :value="option.value" :selected="cell.value === option.value">{{ option.name }}</option>
+            <option v-for="option in cell.schema.options" :key="option.value" :value="option.value" :selected="cell.value === option.value">
+              {{ option.name }}
+            </option>
           </select>
-          <select v-else-if="cell.schema.type === 'list'" multiple>
-            <option></option>
-            <option v-for="option in cell.schema.options" :key="option" :value="option.value" :selected="cell.value.includes(option.value)">{{ option.name }}</option>
+          <select v-else-if="cell.schema.type === 'list'" multiple v-model="cell.value">
+            <option v-for="option in cell.schema.options" :key="option.value" :value="option.value" :selected="cell.value.includes(option.value)">
+              {{ option.name }}
+            </option>
           </select>
         </td>
+        <td><i class="fas fa-trash pointer" aria-hidden="true" title="Удалить" @click="removeRow(rowIndex)"></i></td>
       </tr>
     </table>
   </div>
@@ -25,67 +63,49 @@
 
 <script>
 const _ = require('lodash')
-
-const baseData = {
-  columns: {
-    'text': {name: 'Text column', type: 'text'},
-    'number': {name: 'Number column', type: 'number'},
-    'boolean': {name: 'Boolean column', type: 'boolean'},
-    'enum': {name: 'Enum column', type: 'enum', options: [{value: 'p1', name: 'Option 1'}, {value: 'p2', name: 'Option 2'}]},
-    'list': {name: 'List column', type: 'list', options: [{value: 'p3', name: 'Option 3'}, {value: 'p4', name: 'Option 4'}, {value: 'p5', name: 'Option 5'}]}
-  },
-  rows: [
-    {'text': 'text value', 'number': 123, 'enum': 'p2', 'list': ['p1', 'p2'], 'boolean': true},
-    {'text': 'text value #2', 'number': 456}
-  ]
-}
-
-const columnIds = Object.keys(baseData.columns)
-const columnIdsInverted = _.invert(columnIds)
-const columns = columnIds.map(key => baseData.columns[key].name)
-
-const getDefaultColumnValue = schema => {
-  switch (schema.type) {
-    case 'text': return ''
-    case 'number': return 0
-    case 'boolean': return false
-    case 'enum': return ''
-    case 'list': return []
-    default: return null
-  }
-}
-
-const preparedRows = baseData.rows.map(row => {
-  const rowKeys = Object.keys(row).filter(column => baseData.columns.hasOwnProperty(column))
-  const missingKeys = columnIds.filter(id => !rowKeys.includes(id))
-
-  const inputValues = rowKeys.map(column => ({
-    id: column,
-    value: row[column],
-    schema: baseData.columns[column]
-  }))
-
-  const defaultValuesForMissingKeys = missingKeys.map(key => ({
-    id: key,
-    schema: baseData.columns[key],
-    value: getDefaultColumnValue(baseData.columns[key])
-  }))
-
-  return inputValues.concat(defaultValuesForMissingKeys).sort((l, r) => columnIdsInverted[l.id] - columnIdsInverted[r.id])
-})
+const utils = require('../utils')
 
 export default {
   name: 'edit-page',
   data () {
-    console.log({preparedRows, columns})
+    const basePath = _.get(this.$route.query, 'path', '')
+    const baseData = utils.prepareData(utils.loadJsonFile(basePath))
 
     return {
-      columns: columns,
-      rows: preparedRows
+      columns: baseData.columns,
+      rows: baseData.rows,
+      newRow: baseData.newRow,
+      types: utils.types,
+      newColumn: {id: '', name: '', type: ''}
+    }
+  },
+  methods: {
+    removeColumn (id) {
+      if (confirm('Вы уверены что хотите удалить этот столбец?')) {
+        this.$delete(this.columns, id)
+      }
+    },
+    removeRow (index) {
+      if (confirm('Вы уверены что хотите удалить эту строку?')) {
+        this.rows.splice(index, 1)
+      }
+    },
+    addRow () {
+      this.rows.push(this.newRow)
+    },
+    addColumn () {
+      this.columns[this.newColumn.id] = {name: this.newColumn.name, type: this.newColumn.type}
+      this.newColumn.id = this.newColumn.name = this.newColumn.type = ''
+      this.$modal.hide('add-column-modal')
+    },
+    save () {
+      console.log(this.rows)
     }
   }
 }
 </script>
 
 <style scoped>
+  th, td { padding-right: 1em; }
+  .pointer { cursor: pointer; }
 </style>
