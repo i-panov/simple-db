@@ -28,8 +28,15 @@ export default {
   },
   methods: {
     openBase () {
-      const { dialog } = require('electron')
-      dialog.showOpenDialogSync({})
+      const result = this.$electron.remote.dialog.showOpenDialog({
+        filters: [
+          {name: 'Базы данных', extensions: ['json']}
+        ]
+      })
+
+      if (result && Array.isArray(result)) {
+        this.$router.push({'name': 'edit-page', 'query': {'path': result[0]}})
+      }
     }
   }
 }

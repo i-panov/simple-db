@@ -45,16 +45,9 @@ const prepareData = data => {
       .sort((l, r) => columnIdsInverted[l.id] - columnIdsInverted[r.id])
   })
 
-  const newRow = columnIds.map(id => ({
-    id,
-    value: defaultValues[id],
-    schema: columns[id]
-  }))
-
-  console.log(newRow, preparedRows[0])
-  return {columns, rows: preparedRows, newRow}
+  return {columns, rows: preparedRows}
 }
 
 export {
-  types, loadJsonFile, prepareData
+  types, loadJsonFile, prepareData, defaultValues
 }
