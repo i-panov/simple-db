@@ -76,9 +76,10 @@ export default {
   name: 'edit-page',
   data () {
     const basePath = _.get(this.$route.query, 'path', '')
-    const baseData = fs.existsSync(basePath) ? utils.prepareData(utils.loadJsonFile(basePath)) : {columns: [], rows: []}
+    const baseData = fs.existsSync(basePath) ? utils.prepareData(utils.loadJsonFile(basePath)) : {columns: {}, rows: []}
 
     return {
+      basePath,
       columns: baseData.columns,
       rows: baseData.rows,
       types: utils.types,
@@ -142,6 +143,11 @@ export default {
       }
     },
     addRow () {
+      if (Object.keys(this.columns).length === 0) {
+        alert('Нельзя добавить строку пока не добавлено ни одного столбца!')
+        return
+      }
+
       const newRow = {}
 
       for (const id in this.columns) {
@@ -160,13 +166,29 @@ export default {
       }
     },
     save () {
-      console.log(this.rows)
+      this.basePath = this.basePath || this.$electron.remote.dialog.showSaveDialog({
+        filters: [
+          {name: 'Базы данных', extensions: ['json']}
+        ]
+      })
+
+      utils.saveBase(this.basePath, this.columns, this.rows)
     },
     exit () {
       if (confirm('Вы уверены что хотите выйти без сохранения?')) {
         this.$router.push({name: 'main-page'})
       }
+
+      /* this.$confirm({
+        message: 'Вы уверены что хотите выйти без сохранения?',
+        button: {no: 'Нет', yes: 'Да'},
+        callback (confirm) {
+          console.log(confirm)
+        }
+      }) */
     }
+  },
+  beforeRouteLeave (to, from, next) {
   }
 }
 </script>

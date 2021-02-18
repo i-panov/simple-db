@@ -19,11 +19,18 @@
 </template>
 
 <script>
+const _ = require('lodash')
+const fs = require('fs')
+const os = require('os')
+const recentFilesPath = os.tmpdir() + '/simpledb_recent.log'
+const getRecentBases = () => fs.existsSync(recentFilesPath) ? fs.readFileSync(recentFilesPath, {encoding: 'utf-8'}).split('\n').filter(Boolean) : []
+const saveRecentBases = list => fs.writeFileSync(recentFilesPath, _.uniq(list.filter(Boolean)).join('\n'))
+
 export default {
   name: 'main-page',
   data () {
     return {
-      previouslyOpenedBases: ['/path/to/file']
+      previouslyOpenedBases: getRecentBases()
     }
   },
   methods: {
@@ -35,7 +42,9 @@ export default {
       })
 
       if (result && Array.isArray(result)) {
-        this.$router.push({'name': 'edit-page', 'query': {'path': result[0]}})
+        const filename = result[0]
+        saveRecentBases(getRecentBases().concat(filename))
+        this.$router.push({'name': 'edit-page', 'query': {'path': filename}})
       }
     }
   }

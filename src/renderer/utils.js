@@ -13,6 +13,8 @@ const defaultValues = {
 
 const loadJsonFile = filename => JSON.parse(fs.readFileSync(filename))
 
+const saveJsonFile = (filename, data) => fs.writeFileSync(filename, JSON.stringify(data, '\t'))
+
 const prepareData = data => {
   if (!_.isObject(data)) {
     throw new TypeError('data is not object')
@@ -48,6 +50,11 @@ const prepareData = data => {
   return {columns, rows: preparedRows}
 }
 
+const saveBase = (filename, columns, rows) => {
+  const rowValues = rows.map(row => _.mapValues(_.mapKeys(row, 'id'), 'value'))
+  saveJsonFile(filename, {columns, rows: rowValues})
+}
+
 export {
-  types, loadJsonFile, prepareData, defaultValues
+  types, defaultValues, loadJsonFile, prepareData, saveBase
 }
