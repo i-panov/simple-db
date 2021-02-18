@@ -25,7 +25,22 @@
         <button class="btn btn-primary float-right" @click="saveColumn()">Сохранить</button>
       </div>
     </modal>
-    <modal name="options-modal">
+    <modal name="options-modal" @before-open="beforeOptionsModalOpen" @before-close="beforeOptionsModalClose" width="650">
+      <div class="container">
+        <div class="row">
+          <div class="col-5">
+            <label for="new_option_value" class="col-form-label">Значение</label>
+            <input class="form-control" id="new_option_value" v-model="modalOptions.value">
+          </div>
+          <div class="col-5">
+            <label for="new_option_value" class="col-form-label">Название</label>
+            <input class="form-control" id="new_option_value" v-model="modalOptions.name">
+          </div>
+          <div class="col-2">
+            <button class="btn btn-success float-right" style="margin-top: 2.1em">Добавить</button>
+          </div>
+        </div>
+      </div>
     </modal>
     <div style="margin-top: 1em">
       <button class="btn btn-default" @click="save()">Сохранить</button>
@@ -84,7 +99,7 @@ export default {
       rows: baseData.rows,
       types: utils.types,
       modalColumn: {id: '', name: '', type: ''},
-      modalOptionsId: null
+      modalOptions: {columnId: '', value: '', name: '', options: {}}
     }
   },
   methods: {
@@ -107,14 +122,16 @@ export default {
           for (const cell of row) {
             if (cell.id === this.modalColumn.id) {
               cell.value = utils.defaultValues[this.modalColumn.type]
-              cell.schema = {name: this.modalColumn.name, type: this.modalColumn.type}
+              cell.schema.name = this.modalColumn.name
+              cell.schema.type = this.modalColumn.type
               break
             }
           }
         }
       }
 
-      this.columns[this.modalColumn.id] = {name: this.modalColumn.name, type: this.modalColumn.type}
+      this.columns[this.modalColumn.id].name = this.modalColumn.name
+      this.columns[this.modalColumn.id].type = this.modalColumn.type
       this.modalColumn.id = this.modalColumn.name = this.modalColumn.type = ''
       this.$modal.hide('column-modal')
     },
@@ -125,7 +142,7 @@ export default {
       this.$modal.show('column-modal')
     },
     editOptions (id) {
-      this.modalOptionsId = id
+      this.modalOptions.columnId = id
       this.$modal.show('options-modal')
     },
     removeColumn (id) {
@@ -186,6 +203,12 @@ export default {
           console.log(confirm)
         }
       }) */
+    },
+    beforeOptionsModalOpen () {
+      console.log('beforeOptionsModalOpen')
+    },
+    beforeOptionsModalClose () {
+      console.log('beforeOptionsModalClose')
     }
   },
   beforeRouteLeave (to, from, next) {
