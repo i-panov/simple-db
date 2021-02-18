@@ -1,15 +1,41 @@
 const _ = require('lodash')
 const fs = require('fs')
 
-const types = ['text', 'number', 'boolean', 'enum', 'list']
+const types = ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'enum', 'list']
 
 const defaultValues = {
   'text': '',
   'number': 0,
   'boolean': false,
+  'date': '',
+  'time': '',
+  'datetime': '',
   'enum': '',
   'list': []
 }
+
+// eslint-disable-next-line no-unused-vars
+const flip = collection => {
+  const result = {}
+
+  for (const key in collection) {
+    result[collection[key]] = key
+  }
+
+  return result
+}
+
+// eslint-disable-next-line no-unused-vars
+const sortByKeys = (collection, keys) => keys.reduce((acc, current) => {
+  acc[current] = collection[current]
+  return acc
+}, {})
+
+// eslint-disable-next-line no-unused-vars
+const sortObjectByKeys = (obj, comparator = null) => Object.keys(obj).sort(comparator).reduce((acc, key) => {
+  acc[key] = obj[key]
+  return acc
+}, {})
 
 const loadJsonFile = filename => JSON.parse(fs.readFileSync(filename))
 
@@ -26,35 +52,27 @@ const prepareData = data => {
   const columnIdsInverted = _.invert(columnIds)
   const rows = data.hasOwnProperty('rows') && Array.isArray(data.rows) ? data.rows : []
 
-  const preparedRows = rows.map(row => {
+  const preparedRows = rows.filter(_.isObject).map(row => {
     const rowKeys = Object.keys(row).filter(column => columns.hasOwnProperty(column))
     const missingKeys = columnIds.filter(id => !rowKeys.includes(id))
 
-    const inputValues = rowKeys.map(column => ({
-      id: column,
-      value: row[column],
-      schema: columns[column]
-    }))
+    const cleanRow = rowKeys.reduce((acc, column) => {
+      acc[column] = rows[column]
+      return acc
+    }, {})
 
-    const defaultValuesForMissingKeys = missingKeys.map(key => ({
-      id: key,
-      schema: columns[key],
-      value: _.get(defaultValues, columns[key].type, null)
-    }))
+    const lostRow = missingKeys.reduce((acc, column) => {
+      acc[column] = _.get(defaultValues, columns[column].type, null)
+      return acc
+    })
 
-    return inputValues
-      .concat(defaultValuesForMissingKeys)
-      .sort((l, r) => columnIdsInverted[l.id] - columnIdsInverted[r.id])
+    const finalRow = {...cleanRow, ...lostRow}
+    return sortObjectByKeys(finalRow, (l, r) => columnIdsInverted[l] - columnIdsInverted[r])
   })
 
   return {columns, rows: preparedRows}
 }
 
-const saveBase = (filename, columns, rows) => {
-  const rowValues = rows.map(row => _.mapValues(_.mapKeys(row, 'id'), 'value'))
-  saveJsonFile(filename, {columns, rows: rowValues})
-}
-
 export {
-  types, defaultValues, loadJsonFile, prepareData, saveBase
+  types, defaultValues, loadJsonFile, saveJsonFile, prepareData
 }

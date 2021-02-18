@@ -189,7 +189,7 @@ export default {
         ]
       })
 
-      utils.saveBase(this.basePath, this.columns, this.rows)
+      utils.saveJsonFile(this.basePath, {columns: this.columns, rows: this.rows})
     },
     exit () {
       if (confirm('Вы уверены что хотите выйти без сохранения?')) {
