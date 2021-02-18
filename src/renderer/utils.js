@@ -14,26 +14,8 @@ const defaultValues = {
   'list': []
 }
 
-// eslint-disable-next-line no-unused-vars
-const flip = collection => {
-  const result = {}
-
-  for (const key in collection) {
-    result[collection[key]] = key
-  }
-
-  return result
-}
-
-// eslint-disable-next-line no-unused-vars
 const sortByKeys = (collection, keys) => keys.reduce((acc, current) => {
   acc[current] = collection[current]
-  return acc
-}, {})
-
-// eslint-disable-next-line no-unused-vars
-const sortObjectByKeys = (obj, comparator = null) => Object.keys(obj).sort(comparator).reduce((acc, key) => {
-  acc[key] = obj[key]
   return acc
 }, {})
 
@@ -49,7 +31,6 @@ const prepareData = data => {
   const rawColumns = data.hasOwnProperty('columns') && _.isObject(data.columns) ? data.columns : {}
   const columns = _.pickBy(rawColumns, c => _.isObject(c) && c.hasOwnProperty('type') && types.includes(c.type))
   const columnIds = Object.keys(columns)
-  const columnIdsInverted = _.invert(columnIds)
   const rows = data.hasOwnProperty('rows') && Array.isArray(data.rows) ? data.rows : []
 
   const preparedRows = rows.filter(_.isObject).map(row => {
@@ -67,7 +48,7 @@ const prepareData = data => {
     })
 
     const finalRow = {...cleanRow, ...lostRow}
-    return sortObjectByKeys(finalRow, (l, r) => columnIdsInverted[l] - columnIdsInverted[r])
+    return sortByKeys(finalRow, columnIds)
   })
 
   return {columns, rows: preparedRows}
