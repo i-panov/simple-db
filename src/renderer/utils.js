@@ -1,7 +1,7 @@
 const _ = require('lodash')
 const fs = require('fs')
 
-const types = ['text', 'number', 'boolean', 'date', 'time', 'datetime', 'enum', 'list']
+const types = ['string', 'text', 'number', 'boolean', 'date', 'time', 'datetime', 'enum', 'list']
 
 const defaultValues = {
   'string': '',

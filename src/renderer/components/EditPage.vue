@@ -74,20 +74,20 @@
       </tr>
       <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
         <td v-for="(cell, column) in row" :key="column">
-          <input v-if="columns[column].type === 'string'" type="text" v-model="rows[rowIndex][column]">
-          <textarea v-if="columns[column].type === 'text'" v-model="rows[rowIndex][column]"></textarea>
-          <input v-else-if="columns[column].type === 'number'" type="number" v-model="rows[rowIndex][column]">
-          <input v-else-if="columns[column].type === 'boolean'" type="checkbox" v-model="rows[rowIndex][column]">
-          <input v-else-if="columns[column].type === 'date'" type="date" v-model="rows[rowIndex][column]">
-          <input v-else-if="columns[column].type === 'time'" type="time" v-model="rows[rowIndex][column]">
-          <input v-else-if="columns[column].type === 'datetime'" type="datetime-local" v-model="rows[rowIndex][column]">
-          <select v-else-if="columns[column].type === 'enum'" v-model="rows[rowIndex][column]">
+          <input v-if="columns[column].type === 'string'" type="text" v-model="rows[rowIndex][column]" class="form-control">
+          <textarea v-if="columns[column].type === 'text'" v-model="rows[rowIndex][column]" class="form-control"></textarea>
+          <input v-else-if="columns[column].type === 'number'" type="number" v-model="rows[rowIndex][column]" class="form-control">
+          <input v-else-if="columns[column].type === 'boolean'" type="checkbox" v-model="rows[rowIndex][column]" class="form-control">
+          <input v-else-if="columns[column].type === 'date'" type="date" v-model="rows[rowIndex][column]" class="form-control">
+          <input v-else-if="columns[column].type === 'time'" type="time" v-model="rows[rowIndex][column]" class="form-control">
+          <input v-else-if="columns[column].type === 'datetime'" type="datetime-local" v-model="rows[rowIndex][column]" class="form-control">
+          <select v-else-if="columns[column].type === 'enum'" v-model="rows[rowIndex][column]" class="form-control">
             <option></option>
             <option v-for="(optionName, optionValue) in columns[column].options" :key="optionValue" :value="optionValue" :selected="cell === optionValue">
               {{ optionName }}
             </option>
           </select>
-          <select v-else-if="columns[column].type === 'list'" multiple v-model="rows[rowIndex][column]">
+          <select v-else-if="columns[column].type === 'list'" multiple v-model="rows[rowIndex][column]" class="form-control">
             <option v-for="(optionName, optionValue) in columns[column].options" :key="optionValue" :value="optionValue" :selected="cell.hasOwnProperty(optionValue)">
               {{ optionName }}
             </option>
@@ -102,6 +102,7 @@
 <script>
 const fs = require('fs')
 const _ = require('lodash')
+const uuid = require('uuid')
 const utils = require('../utils')
 
 export default {
@@ -128,7 +129,8 @@ export default {
     },
     saveColumn () {
       const isNew = !this.columns.hasOwnProperty(this.modalColumn.id)
-      const isChangeType = !isNew && this.columns[this.modalColumn.id].type !== this.modalColumn.type
+      const isStringOrText = !isNew && ['string', 'text'].includes(this.columns[this.modalColumn.id].type) && ['string', 'text'].includes(this.modalColumn.type)
+      const isChangeType = !isNew && (this.columns[this.modalColumn.id].type !== this.modalColumn.type && !isStringOrText)
 
       if (isChangeType && !confirm('Вы уверены что хотите изменить тип столбца? Все значения, записанные ранее будут потеряны!')) {
         return
@@ -214,11 +216,17 @@ export default {
       }) */
     },
     beforeOptionsModalOpen () {
-      const options = this.columns[this.modalOptions.columnId].options
+      const options = this.columns[this.modalOptions.columnId].hasOwnProperty('options') ? this.columns[this.modalOptions.columnId].options : {}
       this.modalOptions.options = Object.keys(options).map(key => ({value: key, name: options[key]}))
       this.modalOptions.value = this.modalOptions.name = ''
     },
     beforeOptionsModalClose () {
+      for (const option of this.modalOptions.options) {
+        if (!option.value) {
+          option.value = uuid.v4()
+        }
+      }
+
       this.columns[this.modalOptions.columnId].options = _.chain(this.modalOptions.options).keyBy('value').mapValues('name').value()
       this.modalOptions.columnId = ''
     },
