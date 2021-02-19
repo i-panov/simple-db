@@ -27,7 +27,7 @@
     </modal>
     <modal name="options-modal" @before-open="beforeOptionsModalOpen" @before-close="beforeOptionsModalClose" width="650">
       <div class="container">
-        <div class="row">
+        <div class="row" style="margin-bottom: 2em">
           <div class="col-5">
             <label for="new_option_value" class="col-form-label">Значение</label>
             <input class="form-control" id="new_option_value" v-model="modalOptions.value">
@@ -37,7 +37,20 @@
             <input class="form-control" id="new_option_value" v-model="modalOptions.name">
           </div>
           <div class="col-2">
-            <button class="btn btn-success float-right" style="margin-top: 2.1em">Добавить</button>
+            <button class="btn btn-success float-right" style="margin-top: 2.3em" @click="addOption()">Добавить</button>
+          </div>
+        </div>
+        <div style="overflow-x: hidden; overflow-y: scroll; height: 11em; padding: 1em">
+          <div class="row" style="margin-bottom: 0.5em" v-for="(option, optionIndex) in modalOptions.options" :key="optionIndex">
+            <div class="col-5">
+              <input class="form-control" id="new_option_value" v-model="option.value">
+            </div>
+            <div class="col-5">
+              <input class="form-control" id="new_option_value" v-model="option.name">
+            </div>
+            <div class="col-2">
+              <button class="btn btn-warning float-right" @click="removeOption(optionIndex)">Удалить</button>
+            </div>
           </div>
         </div>
       </div>
@@ -60,19 +73,23 @@
         <th>Действия</th>
       </tr>
       <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
-        <td v-for="cell in row" :key="cell.id">
-          <input v-if="cell.schema.type === 'text'" type="text" v-model="cell.value">
-          <input v-else-if="cell.schema.type === 'number'" type="number" v-model="cell.value">
-          <input v-else-if="cell.schema.type === 'boolean'" type="checkbox" :checked="cell.value">
-          <select v-else-if="cell.schema.type === 'enum'" v-model="cell.value">
+        <td v-for="(cell, column) in row" :key="column">
+          <input v-if="columns[column].type === 'string'" type="text" v-model="rows[rowIndex][column]">
+          <textarea v-if="columns[column].type === 'text'" v-model="rows[rowIndex][column]"></textarea>
+          <input v-else-if="columns[column].type === 'number'" type="number" v-model="rows[rowIndex][column]">
+          <input v-else-if="columns[column].type === 'boolean'" type="checkbox" v-model="rows[rowIndex][column]">
+          <input v-else-if="columns[column].type === 'date'" type="date" v-model="rows[rowIndex][column]">
+          <input v-else-if="columns[column].type === 'time'" type="time" v-model="rows[rowIndex][column]">
+          <input v-else-if="columns[column].type === 'datetime'" type="datetime-local" v-model="rows[rowIndex][column]">
+          <select v-else-if="columns[column].type === 'enum'" v-model="rows[rowIndex][column]">
             <option></option>
-            <option v-for="option in cell.schema.options" :key="option.value" :value="option.value" :selected="cell.value === option.value">
-              {{ option.name }}
+            <option v-for="(optionName, optionValue) in columns[column].options" :key="optionValue" :value="optionValue" :selected="cell === optionValue">
+              {{ optionName }}
             </option>
           </select>
-          <select v-else-if="cell.schema.type === 'list'" multiple v-model="cell.value">
-            <option v-for="option in cell.schema.options" :key="option.value" :value="option.value" :selected="cell.value.includes(option.value)">
-              {{ option.name }}
+          <select v-else-if="columns[column].type === 'list'" multiple v-model="rows[rowIndex][column]">
+            <option v-for="(optionName, optionValue) in columns[column].options" :key="optionValue" :value="optionValue" :selected="cell.hasOwnProperty(optionValue)">
+              {{ optionName }}
             </option>
           </select>
         </td>
@@ -99,10 +116,16 @@ export default {
       rows: baseData.rows,
       types: utils.types,
       modalColumn: {id: '', name: '', type: ''},
-      modalOptions: {columnId: '', value: '', name: '', options: {}}
+      modalOptions: {columnId: '', value: '', name: '', options: []}
     }
   },
   methods: {
+    editColumn (id) {
+      this.modalColumn.id = id
+      this.modalColumn.name = this.columns[id].name
+      this.modalColumn.type = this.columns[id].type
+      this.$modal.show('column-modal')
+    },
     saveColumn () {
       const isNew = !this.columns.hasOwnProperty(this.modalColumn.id)
       const isChangeType = !isNew && this.columns[this.modalColumn.id].type !== this.modalColumn.type
@@ -111,53 +134,34 @@ export default {
         return
       }
 
-      for (const row of this.rows) {
-        if (isNew) {
-          row.push({
-            id: this.modalColumn.id,
-            value: utils.defaultValues[this.modalColumn.type],
-            schema: {name: this.modalColumn.name, type: this.modalColumn.type}
-          })
-        } else if (isChangeType) {
-          for (const cell of row) {
-            if (cell.id === this.modalColumn.id) {
-              cell.value = utils.defaultValues[this.modalColumn.type]
-              cell.schema.name = this.modalColumn.name
-              cell.schema.type = this.modalColumn.type
-              break
-            }
-          }
+      if (isNew || isChangeType) {
+        for (const row of this.rows) {
+          row[this.modalColumn.id] = utils.defaultValues[this.modalColumn.type]
         }
       }
 
-      this.columns[this.modalColumn.id].name = this.modalColumn.name
-      this.columns[this.modalColumn.id].type = this.modalColumn.type
+      if (isNew) {
+        this.columns[this.modalColumn.id] = {name: this.modalColumn.name, type: this.modalColumn.type}
+      } else {
+        this.columns[this.modalColumn.id].name = this.modalColumn.name
+        this.columns[this.modalColumn.id].type = this.modalColumn.type
+      }
+
       this.modalColumn.id = this.modalColumn.name = this.modalColumn.type = ''
       this.$modal.hide('column-modal')
-    },
-    editColumn (id) {
-      this.modalColumn.id = id
-      this.modalColumn.name = this.columns[id].name
-      this.modalColumn.type = this.columns[id].type
-      this.$modal.show('column-modal')
-    },
-    editOptions (id) {
-      this.modalOptions.columnId = id
-      this.$modal.show('options-modal')
     },
     removeColumn (id) {
       if (confirm('Вы уверены что хотите удалить этот столбец?')) {
         for (const row of this.rows) {
-          for (const cellIndex in row) {
-            console.log({row, cellIndex})
-            if (row[cellIndex].id === id) {
-              this.$delete(row, cellIndex)
-            }
-          }
+          this.$delete(row, id)
         }
 
         this.$delete(this.columns, id)
       }
+    },
+    editOptions (id) {
+      this.modalOptions.columnId = id
+      this.$modal.show('options-modal')
     },
     addRow () {
       if (Object.keys(this.columns).length === 0) {
@@ -168,11 +172,7 @@ export default {
       const newRow = {}
 
       for (const id in this.columns) {
-        newRow[id] = {
-          id: id,
-          value: utils.defaultValues[this.columns[id].type],
-          schema: this.columns[id]
-        }
+        newRow[id] = utils.defaultValues[this.columns[id].type]
       }
 
       this.rows.push(newRow)
@@ -189,6 +189,15 @@ export default {
         ]
       })
 
+      for (const row of this.rows) {
+        for (const column in row) {
+          if (this.columns[column].type === 'number') {
+            row[column] = +row[column]
+          }
+        }
+      }
+
+      console.log(this.rows)
       utils.saveJsonFile(this.basePath, {columns: this.columns, rows: this.rows})
     },
     exit () {
@@ -205,10 +214,20 @@ export default {
       }) */
     },
     beforeOptionsModalOpen () {
-      console.log('beforeOptionsModalOpen')
+      const options = this.columns[this.modalOptions.columnId].options
+      this.modalOptions.options = Object.keys(options).map(key => ({value: key, name: options[key]}))
+      this.modalOptions.value = this.modalOptions.name = ''
     },
     beforeOptionsModalClose () {
-      console.log('beforeOptionsModalClose')
+      this.columns[this.modalOptions.columnId].options = _.chain(this.modalOptions.options).keyBy('value').mapValues('name').value()
+      this.modalOptions.columnId = ''
+    },
+    addOption () {
+      this.modalOptions.options.push({value: this.modalOptions.value, name: this.modalOptions.name})
+      this.modalOptions.value = this.modalOptions.name = ''
+    },
+    removeOption (index) {
+      this.$delete(this.modalOptions.options, index)
     }
   },
   beforeRouteLeave (to, from, next) {
